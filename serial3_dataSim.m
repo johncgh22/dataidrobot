@@ -35,6 +35,32 @@ initialConfig = serial3_v3.homeConfiguration;   % Home configuration of the robo
 
 config1 = [1.322; 1.4169; 1.2113] % Configuration 1 presented in the paper
 
+%%% Trajectory used by the Polynomial Trajectory block in the Simulink model.
+%%% useViaPoints = false reproduces the paper: a single quintic segment from
+%%% initialConfig to config1. Every joint then follows the same time profile,
+%%% so the joint signals are perfectly correlated and the torque library is
+%%% rank deficient.
+%%% useViaPoints = true adds intermediate configurations (within the +-pi/2
+%%% joint limits) so each joint moves independently before reaching config1.
+useViaPoints = true;
+if useViaPoints
+    trajWaypoints = [initialConfig, [0.8; -0.6; 0.5], [-0.5; 1.0; 0.9], ...
+        [1.0; 0.3; -0.7], config1];
+    trajTimePoints = [0 2.5 5 7.5 10];
+else
+    trajWaypoints = [initialConfig config1];
+    trajTimePoints = [0 10];
+end
+trajVelBC = zeros(3, numel(trajTimePoints));  % Zero velocity at each waypoint
+trajAccBC = zeros(3, numel(trajTimePoints));  % Zero acceleration at each waypoint
+
+%%% Torque library used by serial3_sindy.m.
+%%% false: linear library [1 qpp qp q] (paper).
+%%% true: adds trigonometric terms of the joint positions and their products
+%%% with the joint accelerations, closer to the structure of the robot
+%%% dynamics (gravity and inertia terms), with a smaller threshold.
+useRichTorqueLibrary = false;
+
 weights = ones(1,6); % Weights for the inverse kinematics solver, giving equal importance to all joints
 q0 = zeros(3,1); % Initial guess for the inverse kinematics solver, starting at the home configuration
 
@@ -50,7 +76,7 @@ mdl = erase(file,'.slx'); % Remove the .slx extension to get the model name
 set_param(mdl,'SimulationCommand','Update')
 
 % Basic execution
-simOut = sim(mdl);
+out = sim(mdl);
 
 %%% At this point, the simulation data should be available in the MATLAB workspace, and the user can proceed to visualize the robot's motion and perform system identification using SINDy. 
 %%% The Simulink model is configured to output the necessary data for these tasks, and the user can access this data for further analysis and visualization.

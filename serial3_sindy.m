@@ -16,8 +16,8 @@
 
 %%% Position data 
 q1s = out.q1_sim.Data;
-q2s = out.q1_sim.Data;
-q3s = out.q1_sim.Data;
+q2s = out.q2_sim.Data;
+q3s = out.q3_sim.Data;
 
 %%% Velocity data
 qp1s = out.qp1_sim.Data;
@@ -35,7 +35,7 @@ tau2s = out.qt_tau.Data(:,2);
 tau3s = out.qt_tau.Data(:,3);
 
 %%% Time vector for graphing.
-tt = linspace(0,10,4211);
+tt = out.q1_sim.Time;
 
 %% SINDy Algorithm for System Identification
 %%% This section define the parameters for the SINDy algorithm, 
@@ -45,7 +45,7 @@ tt = linspace(0,10,4211);
 
 polyorder = 4;  % Search space up to fifth order polynomials
 usesine = 0;    % No trig functions
-n = 2;          % 2D system
+n = 3;          % 3 joints (number of target columns refit by sparsifyDynamics)
 s_t1s = size(tau1s); % Verify the size of the torque data for joint 1.
 
 %% Build library of the Nonlinear Time Series
@@ -62,6 +62,22 @@ Theta_qs2 = [ones(length(tau1s),1)...
     qpp1s qpp2s qpp3s...
     qp1s qp2s qp3s...
     q1s q2s q3s];
+
+%%% Optional richer torque library (set useRichTorqueLibrary in
+%%% serial3_dataSim.m). Adds sin/cos of the joint positions, their products
+%%% with the joint accelerations and sin/cos(q2+q3), which appear in the
+%%% gravity and inertia terms of the manipulator dynamics.
+if ~exist('useRichTorqueLibrary','var')
+    useRichTorqueLibrary = false;
+end
+if useRichTorqueLibrary
+    qs = [q1s q2s q3s];
+    qpps = [qpp1s qpp2s qpp3s];
+    Theta_qs2 = [Theta_qs2 ...
+        sin(qs) cos(qs) ...
+        sin(qs).*qpps cos(qs).*qpps ...
+        sin(q2s+q3s) cos(q2s+q3s)];
+end
 
 %%% Verify the size of the library matrices to ensure they are correctly constructed based on the input data.    
 ms_t = size(Theta_qs,2);
@@ -88,11 +104,19 @@ ms2_t = size(Theta_qs2,2);
 
 lambda = 1e-3;      % Lambda is our sparsification knob.
 
+%%% Threshold for the torque regression. Joint 1 torque is of order 1e-3,
+%%% so the richer library uses a smaller threshold to keep its terms.
+if useRichTorqueLibrary
+    lambdaTau = 1e-5;
+else
+    lambdaTau = lambda;
+end
+
 dqs = [q1s q2s q3s]; % Joint positions as the target for the SINDy algorithm.
 Xis = sparsifyDynamics(Theta_qs,dqs,lambda,n) % Perform sparse regression to identify the underlying dynamics of the system based on the joint positions.
 
 dqs2 = [tau1s tau2s tau3s]; % Joint torques as the target for the SINDy algorithm.
-Xis2 = sparsifyDynamics(Theta_qs2,dqs2,lambda,n) % Perform sparse regression to identify the underlying dynamics of the system based on the joint torques.
+Xis2 = sparsifyDynamics(Theta_qs2,dqs2,lambdaTau,n) % Perform sparse regression to identify the underlying dynamics of the system based on the joint torques.
 
 %% Compute the identified dynamics based on the library and the sparse regression results. This will give us the predicted joint positions and torques based on the identified model from SINDy, which can then be compared to the original simulation data for validation.
 %%% This section computes the identified dynamics based on the 
