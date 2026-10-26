@@ -1,9 +1,7 @@
 # Identification of kinematic and dynamic parameters of a manipulator using a data-driven approach
 
 
-This repository contains the MATLAB/Simulink files needed to reproduce the results of the paper *"Identification of kinematic and dynamic parameters of a manipulator using a data-driven approach"*.
-
-A 3-DoF serial manipulator (built from Dynamixel AX-12A servos) is simulated in Simscape Multibody. The simulated joint positions, velocities, accelerations and torques are then fed to the **SINDy** (Sparse Identification of Nonlinear Dynamics) algorithm, which identifies a sparse model of the robot's kinematics and dynamics and compares it against the simulation.
+This repository contains the MATLAB/Simulink files needed to identify a 3-DoF serial manipulator (built from Dynamixel AX-12A servos) is simulated in Simscape Multibody. The simulated joint positions, velocities, accelerations and torques are then fed to the **SINDy** (Sparse Identification of Nonlinear Dynamics) algorithm, which identifies a sparse model of the robot's kinematics and dynamics and compares it against the simulation.
 
 ---
 
